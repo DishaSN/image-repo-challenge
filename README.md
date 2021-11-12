@@ -1,0 +1,1 @@
+Image updater is an application where you can upload and delete images.
