@@ -1,57 +1,47 @@
-const http = require("http");
-const path = require("path");
-const fs = require("fs");
+const express = require('express')
+const bodyParser = require('body-parser')
+const multer = require('multer')
+const uploadImage = require('./helpers/helpers')
 
-const multer = require("multer")
-const upload = multer({ dest: `./public/uploads` })
+const app = express()
 
-const handleError = (err, res) => {
-    res
-        .status(500)
-        .contentType("text/plain")
-        .end("Oops! Something went wrong!");
-};
+const multerMid = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        // no larger than 5mb.
+        fileSize: 5 * 1024 * 1024,
+    },
+})
 
+app.disable('x-powered-by')
+app.use(multerMid.single('file'))
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({ extended: false }))
 
-const express = require("express");
+app.post('/uploads', async(req, res, next) => {
+    try {
+        const myFile = req.file
+        console.log(req.body);
+        const imageUrl = await uploadImage(myFile)
+        res
+            .status(200)
+            .json({
+                message: "Upload was successful",
+                data: imageUrl
+            })
+    } catch (error) {
+        next(error)
+    }
+})
 
-const app = express();
+app.use((err, req, res, next) => {
+    res.status(500).json({
+        error: err,
+        message: 'Internal server error!' + err,
+    })
+    next()
+})
 
-app.get("/", express.static(path.join(__dirname, "./public")));
-
-const PORT = process.env.PORT || 3000;
-
-http.createServer(app).listen(PORT, function() {
-    console.log(`Server is running on local port ${PORT}`);
-});
-
-app.post('/public/uploads', upload.single('uploaded_file'), function(req, res) {
-    // const tempPath = req.file.path;
-    // const targetPath = path.join(__dirname, "./uploads/image.png");
-
-    // if (path.extname(req.file.originalname).toLowerCase() === ".png") {
-    //     fs.rename(tempPath, targetPath, err => {
-    //         if (err) return handleError(err, res);
-
-    //         res
-    //             .status(200)
-    //             .contentType("text/plain")
-    //             .end("File uploaded!");
-    //     });
-    // } else {
-    //     fs.unlink(tempPath, err => {
-    //         if (err) return handleError(err, res);
-
-    //         res
-    //             .status(403)
-    //             .contentType("text/plain")
-    //             .end("Only .png files are allowed!");
-    //     });
-    console.log(req.file, req.body)
-    res.send("Image uploaded")
-        // }
-});
-
-app.get("/image.png", (req, res) => {
-    res.sendFile(path.join(__dirname, "./uploads/image.png"));
-});
+app.listen(3000, () => {
+    console.log('app now listening for requests!!!')
+})
